@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-public class ClusterHealer implements Watcher{
+public class ClusterHealer implements Watcher {
 
     private final String pathToProgram;// Path to the worker jar
     private final int numberOfWorkers;// The number of worker instances needs maintain at all times
@@ -14,9 +14,9 @@ public class ClusterHealer implements Watcher{
     private static final String ZOOKEEPER_ADDRESS = "localhost:2181";
     private static final int SESSION_TIMEOUT = 3000;
     //parent variables
-    public static final String PARENT_ZNODE = "/worker";
     String parentName;
     //workers variables  - probably don't need this!!
+    private int workersNo;
     private int runningWorkers;
     //zooKeeper variable - nothing works without this!!
     private ZooKeeper zooKeeper;
@@ -26,6 +26,7 @@ public class ClusterHealer implements Watcher{
         this.numberOfWorkers = numberOfWorkers;
         this.pathToProgram = pathToProgram;
     }
+
     /**
      * Check if the `/workers` parent znode exists, and create it if it doesn't. Decide for yourself what type of znode
      * it should be (e.g.persistent, ephemeral etc.). Check if workers need to be launched.
@@ -34,15 +35,18 @@ public class ClusterHealer implements Watcher{
 
         //Persistant mode as this node is the parent node - don't want this node to die.
         //need to check if parent exists - if it doesn't need to create a parent
-        //persistent parent created
-        if(PARENT_ZNODE == null) {
-            parentName = zooKeeper.create(PARENT_ZNODE, new byte[]{}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        if(parentName == null) {
+            parentName = zooKeeper.create("/worker", new byte[]{}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
+
         //check if workers need to be launched
-        if(numberOfWorkers > 0){
+        //checkRunningWorkers();
+        //launch startworker if necessary
+        if (workersNo < numberOfWorkers) {
             startWorker();
         }
     }
+
     /**
      * Instantiates a Zookeeper client, creating a connection to the Zookeeper server.
      */
@@ -55,18 +59,19 @@ public class ClusterHealer implements Watcher{
      * Keeps the application running waiting for Zookeeper events.
      */
     public void run() throws InterruptedException {
-
-        synchronized (zooKeeper)
-        {
+        //only one thread can access this block of code at a time, zooKeeper is being used a lock
+        synchronized (zooKeeper) {
             zooKeeper.wait();
         }
     }
+
     /**
      * Closes the Zookeeper client connection.
      */
     public void close() throws InterruptedException {
         zooKeeper.close();
     }
+
     /**
      * Handles Zookeeper events related to: - Connecting and disconnecting from the Zookeeper server. - Changes in the
      * number of workers currently running.
@@ -105,13 +110,9 @@ public class ClusterHealer implements Watcher{
      */
     public void checkRunningWorkers() throws KeeperException, InterruptedException, IOException {
 
-        List<String> workers = zooKeeper.getChildren(parentName, this);
-
+        List<String> workers = zooKeeper.getChildren(parentName, false);
+        workersNo = workers.size();
         System.out.println(workers);
-
-        if(workers.size() < numberOfWorkers){
-            startWorker();
-        }
 
     }
 
