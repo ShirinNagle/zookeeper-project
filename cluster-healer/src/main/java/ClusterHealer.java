@@ -1,6 +1,7 @@
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 
+import javax.xml.transform.sax.SAXSource;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -34,19 +35,18 @@ public class ClusterHealer implements Watcher {
     public void initialiseCluster() throws KeeperException, InterruptedException, IOException {
 
         Stat parentZNodeName = zooKeeper.exists(WORKERS_PARENT_ZNODE, false);
-        // Stat test = zooKeeper.exists("/workers", false);
-
-        //need to check if parent exists - if it doesn't need to create a parent
+        //Check if parent exists - if it doesn't need to create a parent
         if(parentZNodeName == null) {
-            //need to check if parent exists - if it doesn't need to create a parent
+            //Check if parent exists - if it doesn't need to create a parent
             parentName = zooKeeper.create(WORKERS_PARENT_ZNODE, new byte[]{}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
-        else{//is this superflous??
-            parentName = "/workers";
+        else{
+            parentName = WORKERS_PARENT_ZNODE;
         }
         //check if workers need to be launched, launch startworker if necessary
+
         for(int i = 0; i <numberOfWorkers; i++){
-            checkRunningWorkers();
+            checkRunningWorkers();//not showing as being launched in tests.
         }
     }
 
@@ -106,6 +106,20 @@ public class ClusterHealer implements Watcher {
                 } catch (KeeperException e) {
                     e.printStackTrace();
                 }
+                break;
+                //notifys if a node has been created
+            case NodeCreated:
+                try {
+                    System.out.println("Received node created event");
+                    checkRunningWorkers();
+                } catch (KeeperException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                break;
         }
     }
 
@@ -114,16 +128,20 @@ public class ClusterHealer implements Watcher {
      * If less than the required number, then start a new worker.
      */
     public void checkRunningWorkers() throws KeeperException, InterruptedException, IOException {
-        //Stat workerStat = null;//need to look at Stat
+        Stat workerStat = null;
+        Stat w = new Stat();
+        //this is printing out 0 children...am I calling checkRunningWorkers too early or in the wrongplace
+        System.out.println("The number of child nodes running is: "+ w.getNumChildren());
+        List<String> workers = zooKeeper.getChildren(parentName, false);//move back to if statement
 
-        //if (workerStat == null) {
-            List<String> workers = zooKeeper.getChildren(parentName, false);
+        if (workers == null) {//change to ==
+            //List<String> workers = zooKeeper.getChildren(parentName, false);
             workersNo = workers.size();
             if(workersNo < numberOfWorkers)
             {
                 startWorker();
             }
-        //}
+        }
 
     }
 
