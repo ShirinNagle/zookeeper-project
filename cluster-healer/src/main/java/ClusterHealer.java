@@ -14,10 +14,10 @@ public class ClusterHealer implements Watcher {
     private static final String ZOOKEEPER_ADDRESS = "localhost:2181";
     private static final int SESSION_TIMEOUT = 3000;
     //parent variables
+    private static final String WORKERS_PARENT_ZNODE = "/workers";//parent string
     private String parentName;
-    //workers variables  - probably don't need this!!
+    //workers variables
     private int workersNo;
-    private int runningWorkers;
     //zooKeeper variable - nothing works without this!!
     private ZooKeeper zooKeeper;
 
@@ -33,20 +33,18 @@ public class ClusterHealer implements Watcher {
      */
     public void initialiseCluster() throws KeeperException, InterruptedException, IOException {
 
-        //Persistant mode as this node is the parent node - don't want this node to die.
+        Stat parentZNodeName = zooKeeper.exists(WORKERS_PARENT_ZNODE, false);
+        // Stat test = zooKeeper.exists("/workers", false);
+
         //need to check if parent exists - if it doesn't need to create a parent
-        Stat test = zooKeeper.exists("/workers", false);
-
-        if(test == null) {
-            parentName = zooKeeper.create("/workers", new byte[]{}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-
+        if(parentZNodeName == null) {
+            //need to check if parent exists - if it doesn't need to create a parent
+            parentName = zooKeeper.create(WORKERS_PARENT_ZNODE, new byte[]{}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
-        else{
+        else{//is this superflous??
             parentName = "/workers";
-
         }
-        //check if workers need to be launched
-        //launch startworker if necessary
+        //check if workers need to be launched, launch startworker if necessary
         for(int i = 0; i <numberOfWorkers; i++){
             checkRunningWorkers();
         }
@@ -99,6 +97,7 @@ public class ClusterHealer implements Watcher {
             case NodeDeleted:
                 //if a node is deleted need to notify checking workers - or checking workers needs to notify watchedEvent!!
                 try {
+                    System.out.println("Received node deleted event");
                     checkRunningWorkers();
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -107,10 +106,7 @@ public class ClusterHealer implements Watcher {
                 } catch (KeeperException e) {
                     e.printStackTrace();
                 }
-                System.out.println("Received node deleted event");
         }
-
-
     }
 
     /**
@@ -118,13 +114,16 @@ public class ClusterHealer implements Watcher {
      * If less than the required number, then start a new worker.
      */
     public void checkRunningWorkers() throws KeeperException, InterruptedException, IOException {
-        List<String> workers = zooKeeper.getChildren(parentName, false);
+        //Stat workerStat = null;//need to look at Stat
 
-        workersNo = workers.size();
-        if(workersNo < numberOfWorkers)
-        {
-            startWorker();
-        }
+        //if (workerStat == null) {
+            List<String> workers = zooKeeper.getChildren(parentName, false);
+            workersNo = workers.size();
+            if(workersNo < numberOfWorkers)
+            {
+                startWorker();
+            }
+        //}
 
     }
 
