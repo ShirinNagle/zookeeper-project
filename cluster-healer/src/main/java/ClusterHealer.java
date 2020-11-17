@@ -35,9 +35,9 @@ public class ClusterHealer implements Watcher {
     public void initialiseCluster() throws KeeperException, InterruptedException, IOException {
 
         Stat parentZNodeName = zooKeeper.exists(WORKERS_PARENT_ZNODE, false);
+        //int childWorker = zooKeeper.getAllChildrenNumber(pathToProgram);
         //Check if parent exists - if it doesn't need to create a parent
         if(parentZNodeName == null) {
-            //Check if parent exists - if it doesn't need to create a parent
             parentName = zooKeeper.create(WORKERS_PARENT_ZNODE, new byte[]{}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
         else{
@@ -45,9 +45,16 @@ public class ClusterHealer implements Watcher {
         }
         //check if workers need to be launched, launch startworker if necessary
 
-        for(int i = 0; i <numberOfWorkers; i++){
+        /*if(childWorker == 0){
+            startWorker();
+        }*/
+        //possibly move the loop into checkRunningWorkers
+        //also need a way of checking if the startWorker needs to run in the checkRunningWorkers method.
+        for(int i = 0; i <numberOfWorkers; i++) {
             checkRunningWorkers();//not showing as being launched in tests.
+            //startWorker();
         }
+
     }
 
     /**
@@ -120,6 +127,17 @@ public class ClusterHealer implements Watcher {
                     e.printStackTrace();
                 }
                 break;
+            case NodeChildrenChanged:
+                try {
+                    checkRunningWorkers();
+                } catch (KeeperException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                break;
         }
     }
 
@@ -134,7 +152,7 @@ public class ClusterHealer implements Watcher {
         System.out.println("The number of child nodes running is: "+ w.getNumChildren());
         List<String> workers = zooKeeper.getChildren(parentName, false);//move back to if statement
 
-        if (workers == null) {//change to ==
+        if (workerStat == null) {//change to ==
             //List<String> workers = zooKeeper.getChildren(parentName, false);
             workersNo = workers.size();
             if(workersNo < numberOfWorkers)
