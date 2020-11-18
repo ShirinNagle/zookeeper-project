@@ -52,10 +52,10 @@ public class ClusterHealer implements Watcher {
 
         //possibly move the loop into checkRunningWorkers
         //also need a way of checking if the startWorker needs to run in the checkRunningWorkers method.
-        for(int i = 0; i <numberOfWorkers; i++) {
+        /*for(int i = 0; i <numberOfWorkers; i++) {
             checkRunningWorkers();//not showing as being launched in tests.
             //startWorker();
-        }
+        }*/
 
     }
 
@@ -102,6 +102,7 @@ public class ClusterHealer implements Watcher {
                         zooKeeper.notifyAll();
                     }
                 }
+
                 break;
             case NodeDeleted:
                 //if a node is deleted need to notify checking workers - or checking workers needs to notify watchedEvent!!
@@ -116,23 +117,11 @@ public class ClusterHealer implements Watcher {
                     e.printStackTrace();
                 }
                 break;
-                //notifys if a node has been created
-            case NodeCreated:
-                try {
-                    System.out.println("Received node created event");
-                    checkRunningWorkers();
-                } catch (KeeperException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                break;
                 //most recent case added - this seems to have notified something to initialize CreateWorkers
             case NodeChildrenChanged:
                 try {
                     checkRunningWorkers();
+
                 } catch (KeeperException e) {
                     e.printStackTrace();
                 } catch (InterruptedException e) {
@@ -149,30 +138,21 @@ public class ClusterHealer implements Watcher {
      * If less than the required number, then start a new worker.
      */
     public void checkRunningWorkers() throws KeeperException, InterruptedException, IOException {
-        Stat workerStat = null;
-        Stat w = new Stat();
         //int childWorker = zooKeeper.getAllChildrenNumber(pathToProgram);
         //path here is incorrect
         //int childWorker = zooKeeper.getAllChildrenNumber("./" + pathToProgram);
         //this is printing out 0 children...am I calling checkRunningWorkers too early or in the wrongplace
-        System.out.println("The number of child nodes running is: "+ w.getNumChildren());
+        //System.out.println("The number of child nodes running is: "+ w.getNumChildren());
         //List<String> workers = zooKeeper.getChildren(parentName, false);//move back to if statement
-        List <String> workers = zooKeeper.getChildren(WORKERS_PARENT_ZNODE,false);
+        List <String> workers = zooKeeper.getChildren(WORKERS_PARENT_ZNODE,true);//false or true - same result in tests
         //Collections.sort(workers);
         int workersNo = zooKeeper.getAllChildrenNumber(WORKERS_PARENT_ZNODE);
 
-       if(workersNo != numberOfWorkers);
+       if(workersNo < numberOfWorkers)// !=
         {
             startWorker();
+
         }
-        /*if (workerStat == null) {//change to ==
-            //List<String> workers = zooKeeper.getChildren(parentName, false);
-            workersNo = workers.size();
-            if(workersNo < numberOfWorkers)
-            {
-                startWorker();
-            }
-        }*/
 
     }
 
