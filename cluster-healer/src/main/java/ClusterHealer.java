@@ -48,6 +48,8 @@ public class ClusterHealer implements Watcher {
         /*if(childWorker == 0){
             startWorker();
         }*/
+        checkRunningWorkers();
+
         //possibly move the loop into checkRunningWorkers
         //also need a way of checking if the startWorker needs to run in the checkRunningWorkers method.
         for(int i = 0; i <numberOfWorkers; i++) {
@@ -127,6 +129,7 @@ public class ClusterHealer implements Watcher {
                     e.printStackTrace();
                 }
                 break;
+                //most recent case added - this seems to have notified something to initialize CreateWorkers
             case NodeChildrenChanged:
                 try {
                     checkRunningWorkers();
@@ -148,18 +151,28 @@ public class ClusterHealer implements Watcher {
     public void checkRunningWorkers() throws KeeperException, InterruptedException, IOException {
         Stat workerStat = null;
         Stat w = new Stat();
+        //int childWorker = zooKeeper.getAllChildrenNumber(pathToProgram);
+        //path here is incorrect
+        //int childWorker = zooKeeper.getAllChildrenNumber("./" + pathToProgram);
         //this is printing out 0 children...am I calling checkRunningWorkers too early or in the wrongplace
         System.out.println("The number of child nodes running is: "+ w.getNumChildren());
-        List<String> workers = zooKeeper.getChildren(parentName, false);//move back to if statement
+        //List<String> workers = zooKeeper.getChildren(parentName, false);//move back to if statement
+        List <String> workers = zooKeeper.getChildren(WORKERS_PARENT_ZNODE,false);
+        //Collections.sort(workers);
+        int workersNo = zooKeeper.getAllChildrenNumber(WORKERS_PARENT_ZNODE);
 
-        if (workerStat == null) {//change to ==
+       if(workersNo != numberOfWorkers);
+        {
+            startWorker();
+        }
+        /*if (workerStat == null) {//change to ==
             //List<String> workers = zooKeeper.getChildren(parentName, false);
             workersNo = workers.size();
             if(workersNo < numberOfWorkers)
             {
                 startWorker();
             }
-        }
+        }*/
 
     }
 
